@@ -374,73 +374,54 @@ function! Tex_ForwardSearchLaTeX()
 	" inverse search tips taken from Dimitri Antoniou's tip and Benji Fisher's
 	" tips on vim.sf.net (vim.sf.net tip #225)
 	let execString = 'silent! !'
+
 	if (has('win32'))
 		if (viewer =~? '^ *yap\( \|$\)')
 			let execString .= Tex_Stringformat('start %s -s %s%s %s', viewer, linenr, sourcefile, mainfnameRoot)
-
 		" SumatraPDF forward search support added by Dieter Castel:
 		elseif (viewer =~? "^sumatrapdf")
 			" Forward search in sumatra has these arguments (-reuse-instance is optional):
 			" SumatraPDF -reuse-instance "pdfPath" -forward-search "texPath" lineNumber
 			let execString .= Tex_Stringformat('start %s %s -forward-search %s %s', viewer, target_file, sourcefileFull, linenr)
+		else
+			let mainfnameRoot = fnamemodify(Tex_GetMainFileName(), ':t:r')
+			let execString = 'silent! !start '. viewer. ' -reuse-instance -forward-search ' . expand('%:p') . ' ' . line('.') . ' ' . mainfnameRoot . '.pdf'
 		endif	
-
 	elseif ((has('osx') || has('macunix'))
 				\ && (viewer =~ '\(Skim\|PDFView\|TeXniscope\)'))
 		" We're on a Mac using a traditional Mac viewer
-
 		if viewer =~ 'Skim'
-
 			if executable('displayline')
 				let execString .= 'displayline '
 			else
 				let execString .= '/Applications/Skim.app/Contents/SharedSupport/displayline '
 			endif
 				let execString .= join([linenr, target_file, sourcefileFull])
-
 		elseif viewer =~ 'PDFView'
-
 				let execString .= '/Applications/PDFView.app/Contents/MacOS/gotoline.sh '
 				let execString .= join([linenr, target_file, sourcefileFull])
-
 		elseif viewer =~ 'TeXniscope'
-
 				let execString .= '/Applications/TeXniscope.app/Contents/Resources/forward-search.sh '
 				let execString .= join([linenr, sourcefileFull, target_file])
-
 		endif
-
 	else
 		" We're either UNIX or Mac and using a UNIX-type viewer
-
 		" Check for the special DVI viewers first
 		if viewer =~ '^ *\(xdvi\|xdvik\|kdvi\|okular\|zathura\)\( \|$\)'
 			let execString .= viewer." "
-
 			if Tex_GetVarValue('Tex_UseEditorSettingInDVIViewer') == 1 &&
 						\ exists('v:servername') &&
 						\ viewer =~ '^ *xdvik\?\( \|$\)'
-
 				let execString .= Tex_Stringformat('-name xdvi -sourceposition "%s %s" -editor "gvim --servername %s --remote-silent +\%l \%f" %s', linenr, expand('%'), v:servername, target_file)
-
 			elseif viewer =~ '^ *kdvi'
-
 				let execString .= Tex_Stringformat('--unique file:%s\#src:%s%s', target_file, linenr, sourcefile)
-
 			elseif viewer =~ '^ *xdvik\?\( \|$\)'
-
 				let execString .= Tex_Stringformat('-name xdvi -sourceposition "%s %s" %s', linenr, expand('%'), target_file)
-
 			elseif viewer =~ '^ *okular'
-
 				let execString .= Tex_Stringformat('--unique %s\#src:%s%s', target_file, linenr, sourcefileFull)
-
 			elseif viewer =~ '^ *zathura'
-
 				let execString .= Tex_Stringformat('--synctex-forward %s:1:%s %s', linenr, sourcefileFull, target_file)
-
 			endif
-
 		elseif (viewer == "synctex_wrapper" )
 			" Unix + synctex_wrapper
 			" You can add a custom script named 'synctex_wrapper' in your $PATH
@@ -449,17 +430,13 @@ function! Tex_ForwardSearchLaTeX()
 		else
 			" We must be using a generic UNIX viewer
 			" syntax is: viewer TARGET_FILE LINE_NUMBER SOURCE_FILE
-
 			let execString .= join([viewer, target_file, linenr, sourcefile])
-
 		endif
-
 		" See if we should add &. On Mac (at least in MacVim), it seems
 		" like this should NOT be added...
 		if( Tex_GetVarValue('Tex_ExecuteUNIXViewerInForeground') != 1 )
 			let execString = execString.' &'
 		endif
-
 	endif
 
 	call Tex_Debug("Tex_ForwardSearchLaTeX: execString = ".execString, "comp")
